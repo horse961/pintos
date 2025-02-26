@@ -13,7 +13,7 @@ void populate(struct list *list, int * a, int n){
   int i;
   list_init(list);
   for(i = 0; i < n; i++){
-    struct element *element = malloc(sizeof(struct list_elem));
+    struct element *element = malloc(sizeof(struct element));
     if(element){
       element->priority = a[i];
       list_push_back(list, &element->node);
@@ -23,10 +23,11 @@ void populate(struct list *list, int * a, int n){
 
 void free_list(struct list *list){
   struct list_elem *elem;
-  while((elem = list_pop_front(list)) != NULL){
-    struct element *element = list_entry(elem, struct element, node);
-    free(element);
-  }
+	while (!list_empty(list)) {
+    	elem = list_pop_front(list);
+    	struct element *element = list_entry(elem, struct element, node);
+    	free(element);
+	}
 }
 
 
@@ -51,7 +52,8 @@ extern void test_list_sort(){
   //Populate a list using ITEMARRAY elements
   struct list list;
   list_init(&list);
-  populate(&list, ITEMARRAY, sizeof(ITEMARRAY)/sizeof(int));
+  int size = sizeof(ITEMARRAY)/sizeof(int);
+  populate(&list, ITEMARRAY, size);
   //Sort it with the function
   print_sorted(&list);
   //Free allocated resources
