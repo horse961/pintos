@@ -1,4 +1,4 @@
-#include <listpop.h>
+#include "listpop.h"
 #include <list.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,19 +23,17 @@ void populate(struct list *list, int * a, int n){
 
 void free_list(struct list *list){
   struct list_elem *elem;
-  struct list_elem *next;
   while((elem = list_pop_front(list)) != NULL){
-    next = elem->next;
-    free(elem);
+    struct element *element = list_entry(elem, struct element, node);
+    free(element);
   }
-  free(list);
 }
 
 
 bool compare(const struct list_elem *a, const struct list_elem *b, void * aux){
   struct element *elem_a = list_entry(a, struct element, node);
   struct element *elem_b = list_entry(b, struct element, node);
-  return elem_a->priority > elem_b->priority;
+  return elem_a->priority < elem_b->priority;
 }
 
 void print_sorted(struct list *list){
@@ -49,12 +47,13 @@ void print_sorted(struct list *list){
   }
 }
 
-void test_list_sort(void){
+extern void test_list_sort(){
   //Populate a list using ITEMARRAY elements
-  struct list *list;
-  populate(list, ITEMARRAY, sizeof(ITEMARRAY));
+  struct list list;
+  list_init(&list);
+  populate(&list, ITEMARRAY, sizeof(ITEMARRAY)/sizeof(int));
   //Sort it with the function
-  print_sorted(list);
+  print_sorted(&list);
   //Free allocated resources
-  free_list(list);
+  free_list(&list);
  }
