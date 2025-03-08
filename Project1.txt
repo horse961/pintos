@@ -1,0 +1,20 @@
+Modified thread.h: Added 2 fields to thread struct
+- A field for the list element of the sleeping thread list
+- A int64_t field that represents the current time + sleep time: the thread must wake up after this time 
+- Made the sleep_list accessible (extern)
+
+Modified thread.c: Created a list for the sleeping threads
+- Sleeping threads list declared
+- List is initialized in thread_init() function
+
+Modified timer.c: Re-implemented timer sleep function
+- Check if ticks < 0
+- Compute current time + wakeup time
+- Disable interrupts to avoid 'conflicts' between processes sharing data
+- Set the wakeup time
+- Insert in sleep list
+- Block thread
+- Release interrupt
+
+TODO: Modify timer_interrupt() function-
+TODO: Implement compare function for insertion in list

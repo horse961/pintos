@@ -86,14 +86,26 @@ timer_elapsed (int64_t then)
 
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
+bool compare_wakeup_ticks(const struct list_elem *thread1, const struct list_elem *thread2, void *aux){
+      return list_entry(thread1, struct thread, elem)->wakeup_time < list_entry(thread2, struct thread, elem)->wakeup_time;
+  }
+
 void
 timer_sleep (int64_t ticks) 
 {
+  if(ticks <= 0) return;
   int64_t start = timer_ticks ();
+  int64_t end = start + ticks;
 
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  enum intr_level status = intr_disable ();
+  ASSERT(status == INTR_ON);
+
+  thread_current()->wakeup_time = end;
+  list_insert_ordered(&sleep_list, &thread_current()->sleep_elem, compare_wakeup_ticks, NULL);
+
+  thread_block();
+  intr_set_level(status);
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +184,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  /* TODO: Sleeping threads must be awaken here */
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
