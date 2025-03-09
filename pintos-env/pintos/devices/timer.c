@@ -35,6 +35,7 @@ static void real_time_delay (int64_t num, int32_t denom);
 void
 timer_init (void) 
 {
+  list_init(&sleep_list);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -86,26 +87,27 @@ timer_elapsed (int64_t then)
 
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
-bool compare_wakeup_ticks(const struct list_elem *thread1, const struct list_elem *thread2, void *aux){
-      return list_entry(thread1, struct thread, elem)->wakeup_time < list_entry(thread2, struct thread, elem)->wakeup_time;
-  }
+bool compare_wakeup_ticks(const struct list_elem *a, const struct list_elem *b, void *aux) {
+  return list_entry(a, struct thread, sleep_elem)->wakeup_time < list_entry(b, struct thread, sleep_elem)->wakeup_time;
+}
 
 void
 timer_sleep (int64_t ticks) 
 {
   if(ticks <= 0) return;
+  
+  ASSERT(intr_get_level() == INTR_ON);  // Assert interrupts are on before disabling
+  
   int64_t start = timer_ticks ();
   int64_t end = start + ticks;
 
-  enum intr_level status = intr_disable ();
-  ASSERT(status == INTR_ON);
+  enum intr_level old_level = intr_disable();
 
   thread_current()->wakeup_time = end;
   list_insert_ordered(&sleep_list, &thread_current()->sleep_elem, compare_wakeup_ticks, NULL);
 
   thread_block();
-  intr_set_level(status);
-
+  intr_set_level(old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
