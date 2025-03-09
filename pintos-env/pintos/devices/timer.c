@@ -177,14 +177,31 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
-static void
-timer_interrupt (struct intr_frame *args UNUSED)
+static void timer_interrupt(struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  /* TODO: Sleeping threads must be awaken here */
+
+  enum intr_level old_level = intr_disable();
+
+  while (!list_empty(&sleep_list))
+  {
+    struct list_elem *e = list_front(&sleep_list);
+    struct sleeper_item *sleeper = list_entry(e, struct sleeper_item, elem);
+    if (sleeper->when_wake_up <= ticks)
+    {
+      list_pop_front(&sleep_list);
+      thread_unblock(sleeper->thread);
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  intr_set_level(old_level); // Restore previous interrupt level
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
