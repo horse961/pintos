@@ -179,28 +179,28 @@ timer_print_stats (void)
 }
 
 /* Timer interrupt handler. */
-static void timer_interrupt(struct intr_frame *args UNUSED)
+static void
+timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  thread_tick ();
-
+  thread_tick();
+  
   enum intr_level old_level = intr_disable();
-
+  
   while (!list_empty(&sleep_list))
   {
-    struct list_elem *e = list_front(&sleep_list);
-    struct sleeper_item *sleeper = list_entry(e, struct sleeper_item, elem);
-    if (sleeper->when_wake_up <= ticks)
+    struct thread *t = list_entry(list_front(&sleep_list), struct thread, sleep_elem);
+    if (t->wakeup_time <= ticks)
     {
       list_pop_front(&sleep_list);
-      thread_unblock(sleeper->thread);
+      thread_unblock(t);
     }
     else
     {
       break;
     }
   }
-
+  
   intr_set_level(old_level); // Restore previous interrupt level
 }
 
