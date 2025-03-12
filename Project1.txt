@@ -16,5 +16,9 @@ Modified timer.c: Re-implemented timer sleep function
 - Block thread
 - Release interrupt
 
-TODO: Modify timer_interrupt() function-
-TODO: Implement compare function for insertion in list
+Modified timer.c: Re-implemented timer interrupt function
+- Whenever we have an interrupt, we check if we have to wake a sleeping thread:
+- We iterate over the previously created sleeping threads list
+- Compare for every thread their wakeup time and the current ticks
+- If ticks > wakeup time, we wake the thread and pop it from the list.
+- Otherwise, we break out of the loop. The threads are inserted in an ordered way, if one thread does not have to wake up, all the other ones too.
