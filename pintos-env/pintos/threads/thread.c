@@ -40,6 +40,32 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+/*auxilary function to compare priority of two threads*/
+bool
+cmp_pri(const struct list_elem *a, const struct list_elem *b)
+{
+  struct thread *A =list_entry(a, struct thread, elem);
+  struct thread *B =list_entry(b, struct thread, elem);
+  return A->priority <  B->priority;
+}
+
+/*auxilary function to compare priority of the current theread and highest priority thread*/
+void
+cur_pri()
+{
+  enum intr_level old = intr_disable();
+  if (!list_empty(&ready_list)) {
+    struct list_elem *max_elem = list_max(&ready_list, cmp_pri, NULL);
+    struct thread *max = list_entry(max_elem, struct thread, elem);
+    struct thread *current = thread_current();
+    if(max->priority > current->priority){
+      thread_yield();
+    }
+
+  }
+  intr_set_level(old);
+}
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
