@@ -4,6 +4,7 @@
 *.output
 *.result
 *.o
+
 pintos-env/pintos/threads/build/bochsout.txt
 pintos-env/pintos/threads/build/bochsrc.txt
 pintos-env/pintos/threads/build/kernel.o
