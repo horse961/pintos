@@ -42,20 +42,20 @@ static struct lock tid_lock;
 
 /*auxilary function to compare priority of two threads*/
 bool
-cmp_pri(const struct list_elem *a, const struct list_elem *b, void *AUX)
+cmp_priority(const struct list_elem *a, const struct list_elem *b, void *AUX)
 {
   struct thread *A =list_entry(a, struct thread, elem);
   struct thread *B =list_entry(b, struct thread, elem);
   return A->priority <  B->priority;
 }
 
-/*auxilary function to compare priority of the current theread and highest priority thread*/
+/*auxilary function to yield the thread with lower priority (compares current thread and thread with highest priority in ready threads)*/
 void
-cur_pri()
+yield_priority()
 {
   enum intr_level old = intr_disable();
   if (!list_empty(&ready_list)) {
-    struct list_elem *max_elem = list_max(&ready_list, cmp_pri, NULL);
+    struct list_elem *max_elem = list_max(&ready_list, cmp_priority, NULL);
     struct thread *max = list_entry(max_elem, struct thread, elem);
     struct thread *current = thread_current();
     if(max->priority > current->priority){
@@ -239,7 +239,7 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
-  cur_pri();
+  yield_priority();
 
   return tid;
 }
@@ -376,7 +376,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  cur_pri();
+  yield_priority();
 }
 
 /* Returns the current thread's priority. */
@@ -529,7 +529,7 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else{
-    struct list_elem *el_th_max = list_max(&ready_list, cmp_pri, NULL);
+    struct list_elem *el_th_max = list_max(&ready_list, cmp_priority, NULL);
     struct thread *th_max = list_entry(el_th_max, struct thread, elem);
     list_remove(el_th_max);
     return th_max;
