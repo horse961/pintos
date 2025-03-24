@@ -42,7 +42,7 @@ static struct lock tid_lock;
 
 /*auxilary function to compare priority of two threads*/
 bool
-cmp_pri(const struct list_elem *a, const struct list_elem *b)
+cmp_pri(const struct list_elem *a, const struct list_elem *b, void *AUX)
 {
   struct thread *A =list_entry(a, struct thread, elem);
   struct thread *B =list_entry(b, struct thread, elem);
@@ -239,6 +239,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  cur_pri();
+
   return tid;
 }
 
@@ -374,6 +376,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  cur_pri();
 }
 
 /* Returns the current thread's priority. */
@@ -525,8 +528,12 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else{
+    struct list_elem *el_th_max = list_max(&ready_list, cmp_pri, NULL);
+    struct thread *th_max = list_entry(el_th_max, struct thread, elem);
+    list_remove(el_th_max);
+    return th_max;
+    }
 }
 
 /* Completes a thread switch by activating the new thread's page
