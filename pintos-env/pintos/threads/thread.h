@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 
+extern int load_avg;
+
 
 /* States in a thread's life cycle. */
 enum thread_status
