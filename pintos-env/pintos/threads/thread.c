@@ -42,7 +42,7 @@ static struct lock tid_lock;
 
 /*auxilary function to compare priority of two threads*/
 bool
-cmp_priority(const struct list_elem *a, const struct list_elem *b, void *AUX)
+cmp_priority(const struct list_elem *a, const struct list_elem *b, void *AUX UNUSED)
 {
   struct thread *A =list_entry(a, struct thread, elem);
   struct thread *B =list_entry(b, struct thread, elem);
@@ -122,6 +122,8 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   list_init (&sleep_list);
+
+  load_avg = 0;
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -386,37 +388,60 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
+/* System load average, fixed-point number */
+fixed_point_t load_avg;
+
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  enum intr_level old_level = intr_disable();
+  thread_current()->nice = nice;
+  
+  /* Recalculate priority */
+  thread_current()->priority = PRI_MAX - (thread_get_recent_cpu() / 4) - (thread_get_nice() * 2);
+                
+  /* Bound priority to valid range */
+  if (thread_current()->priority < PRI_MIN)
+  thread_current()->priority = PRI_MIN;
+  else if (thread_current()->priority > PRI_MAX)
+  thread_current()->priority = PRI_MAX;
+  
+  /* Yield if necessary */
+  yield_priority();
+  intr_set_level(old_level);
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  int nice = thread_current()->nice;
+  intr_set_level(old_level);
+  return nice;
 }
 
 /* Returns 100 times the system load average. */
-int
+fixed_point_t
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  fixed_point_t result = (59/60) * load_avg + (1/60) * list_size(&ready_list);
+  intr_set_level(old_level);
+  return result;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
-int
+fixed_point_t
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  enum intr_level old_level = intr_disable();
+  fixed_point_t result = (2 * load_avg) / (2 * load_avg + 1) * thread_current()->recent_cpu + thread_current()->nice;
+  intr_set_level(old_level);
+  return result;
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -465,7 +490,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -502,6 +527,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->nice = 0;
+  t->recent_cpu = 0;
   list_push_back (&all_list, &t->allelem);
 }
 
@@ -618,7 +645,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
