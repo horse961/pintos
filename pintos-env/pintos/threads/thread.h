@@ -5,9 +5,6 @@
 #include <list.h>
 #include <stdint.h>
 
-/* Fixed point arithmetic for MLFQS scheduler */
-typedef int fixed_point_t;
-extern fixed_point_t load_avg;
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -100,7 +97,7 @@ struct thread
     int64_t wakeup_time;                /* Sleeping thread must be awaken at this time. */
 
     int nice;
-    fixed_point_t recent_cpu;
+    int recent_cpu;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -152,4 +149,4 @@ void yield_priority(void);
 /** Make sleeping thread list accessible **/
 struct list sleep_list;
 
-#endif /* threads/thread.h */
+#endif

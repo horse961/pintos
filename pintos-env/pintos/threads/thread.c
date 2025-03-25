@@ -457,7 +457,7 @@ thread_get_priority (void)
 }
 
 /* System load average, fixed-point number */
-fixed_point_t load_avg;
+int load_avg;
 
 /* Sets the current thread's nice value to NICE. */
 void
@@ -491,7 +491,7 @@ thread_get_nice (void)
 }
 
 /* Returns 100 times the system load average. */
-fixed_point_t
+int
 thread_get_load_avg (void) 
 {
   enum intr_level old_level = intr_disable();
@@ -501,7 +501,7 @@ thread_get_load_avg (void)
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
-fixed_point_t
+int
 thread_get_recent_cpu (void) 
 {
   enum intr_level old_level = intr_disable();
