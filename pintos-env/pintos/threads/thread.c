@@ -11,6 +11,8 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "fpr_arith.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -65,6 +67,54 @@ yield_priority()
   }
   intr_set_level(old);
 }
+
+static void
+update_recent_cpu(struct thread *t, void *aux UNUSED)
+{
+  if (t == idle_thread)
+    return;
+
+  FPReal coeff = FPR_DIV_FPR(FPR_MUL_INT(load_avg, 2),
+                             FPR_ADD_INT(FPR_MUL_INT(load_avg, 2), 1));
+  t->recent_cpu = FPR_ADD_INT(FPR_MUL_FPR(coeff, t->recent_cpu), t->nice);
+}
+
+/* Recalculates recent_cpu for all threads. */
+static void
+update_recent_cpu_all(void)
+{
+  thread_foreach(update_recent_cpu, NULL);
+}
+
+static void
+recalculate_priority(struct thread *t, void *aux UNUSED)
+{
+  if (t == idle_thread) return;
+
+  int new_priority = PRI_MAX
+      - FPR_TO_INT(FPR_DIV_INT(t->recent_cpu, 4))
+      - (t->nice * 2);
+
+  if (new_priority > PRI_MAX) new_priority = PRI_MAX;
+  if (new_priority < PRI_MIN) new_priority = PRI_MIN;
+
+  t->priority = new_priority;
+}
+
+static void
+update_load_avg(void)
+{
+  int ready_threads = list_size(&ready_list);
+  if (thread_current() != idle_thread)
+    ready_threads++;
+
+  FPReal coeff1 = INT_DIV_INT(59, 60);
+  FPReal coeff2 = INT_DIV_INT(1, 60);
+
+  load_avg = FPR_ADD_FPR(FPR_MUL_FPR(coeff1, load_avg),
+                         FPR_MUL_INT(coeff2, ready_threads));
+}
+
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -169,6 +219,24 @@ thread_tick (void)
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+
+    /* MLFQS: Update values on tick, second, and every 4 ticks */
+  if (thread_mlfqs) {
+    struct thread *t = thread_current ();
+
+    if (t != idle_thread) {
+      t->recent_cpu = FPR_ADD_INT(t->recent_cpu, 1);
+    }
+
+    if (timer_ticks() % TIMER_FREQ == 0) {
+      update_load_avg();
+      update_recent_cpu_all();
+    }
+
+    if (timer_ticks() % 4 == 0) {
+      thread_foreach(recalculate_priority, NULL);
+    }
+  }
 }
 
 /* Prints thread statistics. */
@@ -427,7 +495,7 @@ fixed_point_t
 thread_get_load_avg (void) 
 {
   enum intr_level old_level = intr_disable();
-  fixed_point_t result = (59/60) * load_avg + (1/60) * list_size(&ready_list);
+  int result = FPR_TO_INT(FPR_MUL_INT(load_avg, 100));
   intr_set_level(old_level);
   return result;
 }
@@ -437,7 +505,7 @@ fixed_point_t
 thread_get_recent_cpu (void) 
 {
   enum intr_level old_level = intr_disable();
-  fixed_point_t result = (2 * load_avg) / (2 * load_avg + 1) * thread_current()->recent_cpu + thread_current()->nice;
+  int result = FPR_TO_INT(FPR_MUL_INT(thread_current()->recent_cpu, 100));
   intr_set_level(old_level);
   return result;
 }
